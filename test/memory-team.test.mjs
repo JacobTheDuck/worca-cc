@@ -269,6 +269,10 @@ test('teamMountNames: a glob that matches anywhere (wildcard first segment) coun
   const broad = { all: { updated: day(20), bytes: 10, paths: ['**'] }, ext: { updated: day(19), bytes: 10, paths: ['src/a.mjs', '*.mjs'] },
     dot: { updated: day(18), bytes: 10, paths: ['./src/**'] }, on: { updated: day(17), bytes: 10, paths: [] } };
   assert.deepEqual(teamMountNames(broad, [], { maxFiles: 1, maxBytes: 32768 }), ['all', 'dot'], '`**` and `*.mjs` take the one always-on slot; ./src/** is scoped');
+  // A hand-pushed branch file keeps `roles:` (teamNoteText drops it from what this machine pushes).
+  const role = (name, roles) => _testing.noteEntry(name, `---\nname: ${name}\ndescription: d\npaths: src/**\nupdated: ${day(21)}\nroles: ${roles}\n---\nBody.\n`);
+  assert.deepEqual(teamMountNames({ ...broad, planner: role('planner', 'planner') }, [], { maxFiles: 1, maxBytes: 32768 }), ['planner', 'dot'],
+    'a note with roles is always-on for its role (its body goes into the system prompt), paths or not');
   const many = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`s${i}`, { updated: day(10 + i), bytes: 10, paths: ['src/**'] }]));
   assert.deepEqual(teamMountNames(many, [], { maxFiles: 2, maxBytes: 32768 }), ['s9', 's8', 's7', 's6', 's5', 's4', 's3', 's2'], 'newest 8 scoped at a cap of 2');
 });

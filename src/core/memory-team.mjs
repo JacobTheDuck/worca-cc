@@ -1055,8 +1055,11 @@ export function teamMountRel(d) { return d.rel === 'project' ? 'team' : `team/${
 /** A note with `paths:` loads only when the agent touches a matching file, so it costs no context until then (memoryHealth's
  *  always-on rule); a note without paths loads into every agent at launch. A glob whose first segment holds a wildcard
  *  (`**`, `*.mjs`) matches files anywhere in the repo, so a note with one loads about as often as an
- *  always-on note and counts as one: a teammate cannot pass the cap by scoping a note to everything. */
-const isScopedNote = (n) => Array.isArray(n?.paths) && n.paths.length > 0
+ *  always-on note and counts as one: a teammate cannot pass the cap by scoping a note to everything. A note with `roles:`
+ *  is always-on for its roles whatever its paths (renderRoleNotes puts its body in their system prompt). `n`: a snapshot
+ *  entry (its `text` holds the roles) or `{paths, roles}`. */
+const noteRoles = (n) => (Array.isArray(n?.roles) ? n.roles : typeof n?.text === 'string' ? rolesOf(parseMemoryFile(n.text).meta) : []);
+const isScopedNote = (n) => Array.isArray(n?.paths) && n.paths.length > 0 && !noteRoles(n).length
   && n.paths.every((g) => { const first = String(g).replace(/^\.?\/+/, '').split('/')[0]; return !!first && !/[*?[\]{}!]/.test(first); });
 /** Scoped notes loaded per always-on slot: bounds what a branch with thousands of scoped notes puts in the rules copy,
  *  well above what a project grows (worca itself: 65 scoped team notes against the default cap of 50). */
@@ -1301,7 +1304,7 @@ async function noteRows(projectKey, caps) {
   const snapshot = await readTeamSnapshot(projectKey);
   const queued = await readQueuedOps(projectKey);
   const rows = teamNoteStates({
-    local: [...local].map(([name, f]) => ({ name, hash: f.hash, marker: f.marker, updated: f.updated, paths: f.meta.paths })),
+    local: [...local].map(([name, f]) => ({ name, hash: f.hash, marker: f.marker, updated: f.updated, paths: f.meta.paths, roles: rolesOf(f.meta) })),
     statuses: await readStatuses(projectKey), queued, snapshot,
     maxFiles: caps.teamMaxFiles, maxBytes: caps.hardBytesPerFile, load: teamMemoryLoadOf(projectKey),
   });
